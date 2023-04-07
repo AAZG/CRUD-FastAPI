@@ -10,3 +10,7 @@ python -m uvicorn main:app --reload
 ### banderas interesantes
 --port 5000 --host 0.0.0.0 # con esta cambiamos el puerto e ip default requeridos
 
+
+## HTTP response status code
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+
