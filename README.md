@@ -3,6 +3,8 @@
 # Movie API using FastAPI
 This API manages a list of movies and allows users to retrieve a list of movies, retrieve a single movie by its id, retrieve a list of movies by category, and add a new movie to the list.
 
+![API_inline](./images/CRUD_FastAPI.png)
+
 # Dependencies
 Python 3.9.15
 fastapi==0.95.0
