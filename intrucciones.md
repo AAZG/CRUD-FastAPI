@@ -14,3 +14,25 @@ python -m uvicorn main:app --reload
 ## HTTP response status code
 https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
 
+
+# Ramas creadas
+git branch
+git checkout -b main
+git checkout -b FastAPI_CRUD
+git checkout -b FastAPI_scheme
+git checkout -b FastAPI_SQLAlchemy
+git checkout -b 
+git checkout -b 
+git checkout -b 
+git checkout -b 
+
+
+
+# Push al repositorio
+git push origin workflow_testing_api
+git push --all origin
+
+
+# hacer pruebas con pytest
+pytest tests/tests_api.py
+Aqui pidio: instalar pip install httpx, luego corri la linea anterior y funciono (yo trabaje con python 3.9.15)

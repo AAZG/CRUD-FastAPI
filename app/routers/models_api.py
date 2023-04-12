@@ -3,12 +3,12 @@ from typing import Optional, Union
 import datetime
 from fastapi.security import HTTPBearer
 from fastapi import Request
-from jwt_manager import validate_token
+from routers.jwt_manager import validate_token
 from fastapi import HTTPException
 
-class Movie(BaseModel):
-    id: Union[int, None] = Field(None, ge=1, le=2000)
-    # Optional[int] = None
+class MovieAPI(BaseModel):
+    # id: Union[int, None] = Field(None, ge=1, le=2000)
+    # # Optional[int] = None
     
                     
     title: str = Field(min_length=5, max_length=20,
@@ -53,7 +53,7 @@ class Movie(BaseModel):
                 "category": "Crime"
             }
         }
-        exclude = ['id']
+        # exclude = ['id']
         
         
 class User(BaseModel):

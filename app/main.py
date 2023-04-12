@@ -1,17 +1,25 @@
 from fastapi import FastAPI, HTTPException, status, Path, Query, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
-from models import Movie, User, JWTBearer
-from data import films
-from config import create_configuration_fastapi
-from jwt_manager import create_token
+from fastapi.encoders import jsonable_encoder
 import datetime
 from typing import Union, List
-
+from routers.models_api import MovieAPI, User, JWTBearer
+from routers.data import films
+from routers.config_api import create_configuration_fastapi
+from routers.jwt_manager import create_token
+from config.database import Session, engine, Base
+from models.movie import Movie as MovieModel
+from middlewares.error_handler import ErrorHandler
 
 # Creación de una instancia de nuestra API
 app = FastAPI()
 create_configuration_fastapi(app)
          
+app.add_middleware = ErrorHandler     
+         
+Base.metadata.create_all(bind=engine)
+
+
 
 #creacion de los endpoin
 #los tags nos permite agrupar las rutas de la aplicacion
@@ -56,34 +64,32 @@ def login(user: User):
         return JSONResponse(status_code=401, 
                             content={"message": "Credenciales inválidas, intente de nuevo"})
     
-    # print("DEBUGGER")
-    # return user
-
+    
 
 # creaciòn de la ruta peliculas, y la etiqueta peliculas
 @app.get('/films', 
          tags=['films'], 
          status_code=status.HTTP_200_OK,
          summary="All films",
-         response_model=List[Movie],
-         dependencies=[Depends(JWTBearer())])
-def get_films() -> List[Movie]: # devuelve el listado de las peliculas
+         response_model=List[MovieAPI],
+        #  dependencies=[Depends(JWTBearer())]
+         )
+def get_films() -> List[MovieAPI]: # devuelve el listado de las peliculas
     """
     Obtener todas las peliculas
     """
     try:
-        list_all_movie = films
+        db = Session()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     else:
-        if not list_all_movie:
+        result = db.query(MovieModel).all()
+        if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="List films empty")
-        else:
-            print("DEBUGGER")
-            return JSONResponse(status_code=status.HTTP_200_OK,
+        return JSONResponse(status_code=status.HTTP_200_OK,
                             content={
                                 "message": "Get all films successfully",
-                                "details": list_all_movie
+                                "details": jsonable_encoder(result)
                                 }
                             )
 
@@ -92,25 +98,24 @@ def get_films() -> List[Movie]: # devuelve el listado de las peliculas
         tags=["films"], 
         status_code=status.HTTP_200_OK,
         summary="Movie by id",
-        response_model=Movie,
+        response_model=MovieAPI,
         dependencies=[Depends(JWTBearer())])
-def get_movie_by_id(id: int = Path(ge=1, le=2000)) -> Movie:
+def get_movie_by_id(id: int = Path(ge=1, le=2000)) -> MovieAPI:
     """
     Obtener película por id por parámetro de ruta
     """
     try:
-        list_all_movie = films
-        movie_by_id = [movie for movie in list_all_movie if movie['id'] == id]
+        db = Session()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     else:
-        if not movie_by_id:
+        result = db.query(MovieModel).filter(MovieModel.id == id).one_or_none()
+        if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Id movie not found")
-        print("DEBUGGER")
         return JSONResponse(status_code=status.HTTP_200_OK,
                             content={
                                 "message": "Get movie por id successfully",
-                                "details": movie_by_id[0]
+                                "details": jsonable_encoder(result)
                                 }
                             )
     
@@ -119,60 +124,64 @@ def get_movie_by_id(id: int = Path(ge=1, le=2000)) -> Movie:
         tags=['films'],
         status_code=status.HTTP_200_OK,
         summary="Movie by category our year",
-        response_model=List[Movie],
+        response_model=List[MovieAPI],
         dependencies=[Depends(JWTBearer())]
         )
 # Cuando no se deja un parámetro en la ruta pero si en la función, fastAPI detecta que es por query
 def get_movie_by_category_our_year(category: Union[str, None] = Query(None, min_length=5, max_length=20), 
-                                   year: Union[int, None] = Query(None, ge=1900, le=datetime.date.today().year)) -> List[Movie]:
+                                   year: Union[int, None] = Query(None, ge=1900, le=datetime.date.today().year)) -> List[MovieAPI]:
     """
     Obtener película/as por una categoría o año por Query Parameters
     """
     try:
-        list_all_movie = films
+        db = Session()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     else:
         if category is None and year is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coloque algo, no sea pendejo")
-            
+        
         elif year is None:
-            movie_categorie = [movie for movie in list_all_movie if movie['category'] == category]
-            if not movie_categorie:
+            result = db.query(MovieModel).filter(MovieModel.category == category).all()
+            if not result:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category of movie not found")
             print("DEBUGGER")
             return JSONResponse(status_code=status.HTTP_200_OK,
                     content={
                         "message": f"Get all films for category {category} successfully",
-                        "details": movie_categorie
+                        "details": jsonable_encoder(result)
                         }
                     )
-        
         elif category is None:
-            movie_year = [movie for movie in list_all_movie if movie['year'] == year]
-            if not movie_year:
+            result = db.query(MovieModel).filter(MovieModel.year == year).all()
+            if not result:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Year of movie not found")
             print("DEBUGGER")
-        
             return JSONResponse(status_code=status.HTTP_200_OK,
-            content={
-                "message": f"Get all films for year {year} successfully",
-                "details": movie_year
-                }
-            )
-        
+                    content={
+                        "message": f"Get all films for year {year} successfully",
+                        "details": jsonable_encoder(result)
+                        }
+                    )
         else:
-            movie_categorie_year = [movie for movie in list_all_movie if (movie['category'] == category and movie['year'] == year)]
-            if not movie_categorie_year:
+            result = db.query(MovieModel).filter(MovieModel.category == category and MovieModel.year == year).all()
+            if not result:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category our year of movie not found")
             print("DEBUGGER")
-            
             return JSONResponse(status_code=status.HTTP_200_OK,
-            content={
-                "message": f"Get all films for year {year} and category {category} successfully",
-                "details": movie_categorie_year
-                }
-            )
+                    content={
+                        "message": f"Get all films for year {year} and category {category} successfully",
+                        "details": jsonable_encoder(result)
+                        }
+                    )
+
+
+# class YourSchema(BaseModel):
+#     field_1: int
+#     field_n: str
+
+#     class Config:
+#         orm_mode = True
 
 
 @app.post('/films/create/', 
@@ -182,31 +191,23 @@ def get_movie_by_category_our_year(category: Union[str, None] = Query(None, min_
           response_model=dict,
           dependencies=[Depends(JWTBearer())]
           )
-async def create_movie(movie: Movie) -> dict:
+async def create_movie(movie: MovieAPI) -> dict:
     """
     Agregar una película por parámetros en el body, ID se coloca de manera automatica segun orden que sigue en nuestros "films"
     """
     try:
-        list_all_movie = films
+        db = Session()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     else:
-        if list_all_movie:
-            id = list_all_movie[-1]['id'] + 1
-        else:
-            id = 1
-        
-        movie_dict = movie.dict()
-        movie_dict['id'] = id
-        films.append(movie_dict)
-        print("DEBUGGER")
-        return JSONResponse(status_code=status.HTTP_201_CREATED,
-                            content={
-                                "message": "Created movie successfully",
-                                "details": films[-1]
-                                }
-                            )
-
+        new_movie = MovieModel(**movie.dict())
+        db.add(new_movie)
+        db.commit()
+        db.refresh(new_movie)
+        return JSONResponse(status_code=status.HTTP_201_CREATED, 
+                            content={"message": "Se ha registrado la película",
+                                     "details": jsonable_encoder(new_movie)})
+    
 
 @app.put(
     "/films/update/{id}",
@@ -215,35 +216,27 @@ async def create_movie(movie: Movie) -> dict:
     summary="Update movie", 
     response_model=dict,
     dependencies=[Depends(JWTBearer())]
-    # response_model_exclude={'id'}
     )
-async def update_movie( movie: Movie, id: int = Path(ge=1, le=2000))  -> dict:
+async def update_movie( movie: MovieAPI, id: int = Path(ge=1, le=2000))  -> dict:
     """
     Actualizar una película por parámetros en el body buscando por el parámetro de ID
     """
     try:
-        list_all_movie = films
-        movie_by_id = [movie for movie in list_all_movie if movie['id'] == id]
+        db = Session()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     else:
-        if not movie_by_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found! t(-_-t)")
-        else:
-            print("DEBUGGER")
+        movie_update = db.query(MovieModel).filter(MovieModel.id == id).one_or_none()
+        if not movie_update: 
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ID No found")
+        movie_update.update(movie.dict(exclude_unset=True))
+        db.commit()
+        db.refresh(movie_update)
+        return JSONResponse(status_code=status.HTTP_200_OK, 
+                            content={"message": "Updated movie successfully"}
+                            )
+        
 
-            movie_dict = movie.dict()
-            movie_dict['id'] = id
-            films[id - 1] = movie_dict
-
-            return JSONResponse(
-                status_code=status.HTTP_200_OK,
-                content={
-                    "message": "Updated movie successfully",
-                    "details": films[id - 1]
-                    }
-                )
-    
 
 
 @app.delete(
@@ -259,21 +252,51 @@ async def delete_movie(id: int = Path(ge=1, le=2000)) -> dict:
     Eliminar una película por el parámetro de ID
     """
     try:
-        list_all_movie = films
-        movie_by_id = [movie for movie in list_all_movie if movie['id'] == id]
+        db = Session()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     else:
-        if not movie_by_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found! t(-_-t)")
-        else:
-            print("DEBUGGER")
-            films.remove(movie_by_id[0])
+        movie_delete = db.query(MovieModel).where(MovieModel.id == id).one_or_none()
 
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                "message": "Deleted movie successfully",
-                "details": movie_by_id[0]
-                }
-            )
+        if movie_delete: 
+            db.delete(movie_delete)
+            db.commit()
+            return JSONResponse(status_code=status.HTTP_200_OK, 
+                                content={
+                                    "message": "Deleted movie successfully",
+                                    "details": jsonable_encoder(movie_delete)
+                                    })
+            
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ID No found")
+    
+    
+    
+# @app.delete(
+#     "/films/delete/",
+#     tags=['films'],
+#     status_code=status.HTTP_200_OK,
+#     summary="Delete all movie", 
+#     response_model=dict,
+#     dependencies=[Depends(JWTBearer())]
+#     )
+# async def delete_all_movie() -> dict:
+#     """
+#     Eliminar una película por el parámetro de ID
+#     """
+#     try:
+#         db = Session()
+#     except Exception as e:
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+#     else:
+#         all_films_delete = db.query(MovieModel).all()
+#         if not all_films_delete:
+#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="List films empty")
+        
+#         db.delete(all_films_delete)
+#         db.commit()
+#         return JSONResponse(status_code=status.HTTP_200_OK,
+#                             content={
+#                                 "message": "Delete all films successfully",
+#                                 "details": jsonable_encoder(all_films_delete)
+#                                 }
+#                             )
