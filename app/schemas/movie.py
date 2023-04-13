@@ -1,14 +1,10 @@
 from pydantic import BaseModel, Field, validator
-from typing import Optional, Union
 import datetime
-from fastapi.security import HTTPBearer
-from fastapi import Request
-from jwt_manager import validate_token
-from fastapi import HTTPException
+from typing import Union, List
 
-class Movie(BaseModel):
-    id: Union[int, None] = Field(None, ge=1, le=2000)
-    # Optional[int] = None
+class MovieAPI(BaseModel):
+    # id: Union[int, None] = Field(None, ge=1, le=2000)
+    # # Optional[int] = None
     
                     
     title: str = Field(min_length=5, max_length=20,
@@ -53,25 +49,4 @@ class Movie(BaseModel):
                 "category": "Crime"
             }
         }
-        exclude = ['id']
-        
-        
-class User(BaseModel):
-    email: str
-    password: int
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "email": "admin@gmail.com",
-                "password": 12345,
-            }
-        }
-        
-        
-class JWTBearer(HTTPBearer):
-    async def __call__(self, request: Request):
-        auth = await super().__call__(request)
-        data = validate_token(auth.credentials)
-        if data['email'] != "admin@gmail.com":
-            raise HTTPException(status_code=403, detail="Credenciales son invalidas")
+        # exclude = ['id']
