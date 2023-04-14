@@ -1,3 +1,8 @@
+from middlewares.error_handler import ErrorHandler
+from routers.films import films_router
+from routers.users import users_router
+from routers.home import home_router
+
 def create_configuration_fastapi(app):
     # Changes to the docs
     app.title = "CRUD FastAPI"
@@ -13,3 +18,9 @@ def create_configuration_fastapi(app):
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     }
+    
+    app.add_middleware(ErrorHandler)
+    
+    routers = [home_router, users_router, films_router]
+    for router in routers:
+        app.include_router(router)
